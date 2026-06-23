@@ -10,9 +10,9 @@ data as a 1-D signal, take its FFT, and keep only a handful of dominant
 frequency components ("genes"). For data dominated by a few periodic
 components (e.g. smooth telemetry / trajectory streams) this is extremely
 compact; for general high-entropy data it is **lossy** and reconstruction is
-approximate. Marketing materials advertise "99.99% compression" — this is the
-ratio achieved on the favorable synthetic trajectory workload in
-`omega_16d_quantum.py`, not a general-purpose guarantee.
+approximate. Marketing materials advertise "99.99% compression" — treat that as
+a single observed measurement on a favorable workload, not a general guarantee
+(see "Benchmark provenance" below).
 
 This is a research / demonstration codebase, not a production-hardened library.
 Keep that framing when reasoning about it.
@@ -80,6 +80,40 @@ python3 omega_16d_quantum.py   # evolves the system, writes trajectory_2025.ksdz
 `.ksdz` archive to the working directory. There is no test suite; verify
 changes by round-tripping data through `compress`/`decompress` and checking the
 reconstruction is sane for periodic inputs.
+
+## Benchmark provenance
+
+Quote benchmarks as reproducible measurements, not slogans. State the workload
+and environment with every number. What the repo actually claims:
+
+- **Claimed** (`README.md`): ratio "99.99%", throughput "~9.2 MB/s" on a
+  "Samsung S24 / Snapdragon 8 Gen 3". No dataset spec, sample size, or date is
+  given, so these are **not independently reproducible** as written.
+- **Demo workload** (`omega_16d_quantum.py` `__main__`): 16-D oscillator system,
+  `evolve(steps=100000)`, archived as `float32` via `imprint` +
+  `compress(top_k=100)`. This is smooth, near-periodic synthetic data — the
+  best case for FFT-keep-top-k, which is why the ratio is so high. It says
+  nothing about general inputs.
+
+When you (re)run a benchmark, record: `dataset`, `N` (sample size/steps),
+`top_k`, `hardware`, `Python/NumPy versions`, `date`, and whether the data was
+periodic — so `metric -> reproducible experiment`, not `metric -> headline`.
+
+## Verification status
+
+- **Verified (from source):** module layout; the `imprint`/`compress`/
+  `decompress` API and its lossy FFT round-trip; the binary format
+  (`<QH` header, `<Iff` genes); NumPy as the sole import; absence of tests/CI/
+  packaging.
+- **Unverified:** the README benchmark numbers (no reproduction here); actual
+  reconstruction quality/error bounds on real (non-synthetic) data; behavior on
+  inputs shorter than `max(lotus_freqs)` or with degenerate spectra.
+- **Open questions:** intended/safe ranges for `top_k` and `strength_factor`;
+  whether `.ksdz` archives are meant to be portable across machines/endianness
+  (the format hardcodes little-endian).
+
+Update these lists when you verify or invalidate an item — do not let
+"Unverified" claims drift into "Verified" without actually checking them.
 
 ## Git workflow
 
