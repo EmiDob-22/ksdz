@@ -58,6 +58,8 @@ class KSDZ_Quantum_Encoder:
         for _ in range(gene_count):
             chunk = ksdz_bytes[offset : offset + self.gene_size]
             idx, real, imag = struct.unpack(self.gene_format, chunk)
+            if not 0 <= idx < original_size:
+                raise ValueError(f"corrupt KSDZ data: index {idx} out of range for size {original_size}")
             spectrum[idx] = complex(real, imag)
             if idx > 0: spectrum[-idx] = complex(real, -imag)
             offset += self.gene_size
