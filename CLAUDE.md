@@ -99,6 +99,20 @@ When you (re)run a benchmark, record: `dataset`, `N` (sample size/steps),
 `top_k`, `hardware`, `Python/NumPy versions`, `date`, and whether the data was
 periodic — so `metric -> reproducible experiment`, not `metric -> headline`.
 
+### Environment (to be filled after a verified run)
+
+Leave these blank until an actual run confirms them — a declared gap is better
+than fabricated versions. As of this writing NumPy is **not installed** in the
+default environment, so nothing below has been verified here.
+
+```
+Python:        (unverified)
+NumPy:         (unverified)
+SciPy:         (not a dependency; only if added)
+Platform:      (unverified)
+Last verified: (never)
+```
+
 ## Verification status
 
 - **Verified (from source):** module layout; the `imprint`/`compress`/
