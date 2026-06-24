@@ -1,0 +1,9 @@
+# Benchmark runtime artifacts (regenerate with benchmark_runner.py)
+results.json
+*.ksdz
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

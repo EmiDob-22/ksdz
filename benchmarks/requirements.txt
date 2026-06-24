@@ -1,0 +1,7 @@
+# Pinned to the versions used for the last verified suite run (see CLAUDE.md
+# "Environment"). Loose lower bounds; exact verified versions are recorded in
+# each results.json "environment" block.
+numpy>=2.0
+zstandard>=0.22
+lz4>=4.0
+jsonschema>=4.0   # optional: validates results.json against results_schema.json

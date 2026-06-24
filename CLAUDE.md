@@ -26,9 +26,37 @@ Keep that framing when reasoning about it.
 | `README.md` | Overview, license warning, benchmark table. |
 | `COMMERCIAL_OFFER.md` | Dual-licensing / commercial pricing pitch. |
 | `LICENSE` | AGPLv3 (currently a placeholder pointing at the full AGPLv3 text). |
+| `benchmarks/` | Reproducible evaluation suite (see "Benchmark suite" below). |
 
-There is no package structure, no `setup.py`/`pyproject.toml`, no tests, and no
-CI. The two modules are run directly.
+There is no package structure, no `setup.py`/`pyproject.toml`, and no CI. The two
+core modules are run directly. The `benchmarks/` suite is an executable
+evaluation harness (not a unit-test suite) with a single entrypoint.
+
+## Benchmark suite
+
+`benchmarks/` evaluates the codec against standard lossless compressors. It does
+not assert performance numbers — it measures them and writes `results.json`.
+
+```bash
+pip install -r benchmarks/requirements.txt
+python benchmarks/benchmark_runner.py --all --output results.json
+```
+
+The hard rule it enforces: **two metric classes, never mixed.**
+
+- `lossless` (`zlib`, `zstd` l3/l9, `lz4`) — metric is compression ratio; exact
+  round-trip is asserted. Lives in `baselines.py`.
+- `lossy_transform` (KSDZ) — metrics are RMSE/NRMSE, L2/L∞, and spectral
+  distortion (raw + normalized); its size ratio is recorded only as a
+  `pseudo_compression_ratio`, flagged non-comparable. Lives in `ksdz_adapter.py`
+  behind a distinct `LossyTransformCodec` (`encode`/`decode`, not
+  `compress`/`decompress`).
+
+The separation is enforced both in code (`assert_no_class_mixing`) and in
+`results_schema.json` (conditional rules). Prefer the **normalized** metrics
+(`nrmse`, `spectral_distortion_normalized`) for cross-dataset comparison; raw L2
+and spectral distortion scale with N. See `benchmarks/README.md` for the full
+protocol (uint8 canonicalization, determinism, provenance).
 
 ## Architecture
 
@@ -84,44 +112,64 @@ reconstruction is sane for periodic inputs.
 ## Benchmark provenance
 
 Quote benchmarks as reproducible measurements, not slogans. State the workload
-and environment with every number. What the repo actually claims:
+and environment with every number.
 
-- **Claimed** (`README.md`): ratio "99.99%", throughput "~9.2 MB/s" on a
-  "Samsung S24 / Snapdragon 8 Gen 3". No dataset spec, sample size, or date is
-  given, so these are **not independently reproducible** as written.
+- **Legacy marketing claims removed.** The old README "99.99% ratio" / "~9.2
+  MB/s (Samsung S24)" numbers had no dataset, sample size, or date and were not
+  reproducible. They have been replaced by a claims table marked `unverified`
+  and by the `benchmarks/` suite. Do not reintroduce a headline number that is
+  not present in a generated `results.json`.
+- **Measured truth (from the suite):** on the uint8 canonical signals, the
+  lossless baselines compress to a degree that tracks data entropy (gaussian
+  noise ~0.08–0.12, sinusoidal ~0.94 at N=65536). KSDZ reaches a higher *size*
+  ratio but only because `pseudo_compression_ratio` is fixed by `top_k`
+  (≈ header + 12·k bytes) — it rises with N mechanically — while its
+  reconstruction is lossy (NRMSE ~0.03 on near-periodic data, ~0.16 on gaussian
+  noise). Read ratio and fidelity together, never ratio alone.
 - **Demo workload** (`omega_16d_quantum.py` `__main__`): 16-D oscillator system,
   `evolve(steps=100000)`, archived as `float32` via `imprint` +
-  `compress(top_k=100)`. This is smooth, near-periodic synthetic data — the
-  best case for FFT-keep-top-k, which is why the ratio is so high. It says
-  nothing about general inputs.
+  `compress(top_k=100)`. Smooth, near-periodic synthetic data — the best case
+  for FFT-keep-top-k. It says nothing about general inputs.
 
 When you (re)run a benchmark, record: `dataset`, `N` (sample size/steps),
 `top_k`, `hardware`, `Python/NumPy versions`, `date`, and whether the data was
 periodic — so `metric -> reproducible experiment`, not `metric -> headline`.
 
-### Environment (to be filled after a verified run)
+### Environment (verified run)
 
-Leave these blank until an actual run confirms them — a declared gap is better
-than fabricated versions. As of this writing NumPy is **not installed** in the
-default environment, so nothing below has been verified here.
+These were captured from an actual suite execution (the trigger that moves this
+block from "unverified" to measured). Every `results.json` also embeds its own
+`environment` block, so each run is self-describing.
 
 ```
-Python:        (unverified)
-NumPy:         (unverified)
-SciPy:         (not a dependency; only if added)
-Platform:      (unverified)
-Last verified: (never)
+Python:        3.11.15
+NumPy:         2.4.6
+zstandard:     0.25.0
+lz4:           4.4.5
+jsonschema:    4.26.0   (optional; validates results.json)
+SciPy:         (not a dependency)
+Platform:      Linux-6.18.5-x86_64 (glibc 2.39)
+Last verified: 2026-06-24  (benchmarks/benchmark_runner.py --all)
 ```
+
+Re-derive, don't trust this table: run the suite and read the `environment`
+block of the produced `results.json`.
 
 ## Verification status
 
+- **Verified (executed):** the `compress`/`decompress` lossy round-trip on the
+  four benchmark datasets; the suite environment (Python 3.11.15 / NumPy 2.4.6 /
+  zstandard 0.25.0 / lz4 4.4.5); `results.json` validates against
+  `results_schema.json`; dataset determinism (same `(name,N,seed)` → same
+  SHA256); KSDZ fidelity is now *measured* (NRMSE/spectral distortion per
+  dataset), not assumed.
 - **Verified (from source):** module layout; the `imprint`/`compress`/
-  `decompress` API and its lossy FFT round-trip; the binary format
-  (`<QH` header, `<Iff` genes); NumPy as the sole import; absence of tests/CI/
-  packaging.
-- **Unverified:** the README benchmark numbers (no reproduction here); actual
-  reconstruction quality/error bounds on real (non-synthetic) data; behavior on
-  inputs shorter than `max(lotus_freqs)` or with degenerate spectra.
+  `decompress` API; the binary format (`<QH` header, `<Iff` genes); NumPy as the
+  sole import of the core modules; absence of CI/packaging.
+- **Unverified:** the original README "99.99%"/"9.2 MB/s" claims (removed in
+  Phase 1, never reproduced); behavior on inputs shorter than `max(lotus_freqs)`
+  or with degenerate spectra; the `imprint` path (the suite exercises
+  `compress`/`decompress`, not `imprint`).
 - **Open questions:** intended/safe ranges for `top_k` and `strength_factor`;
   whether `.ksdz` archives are meant to be portable across machines/endianness
   (the format hardcodes little-endian).

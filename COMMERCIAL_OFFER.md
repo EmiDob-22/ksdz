@@ -12,4 +12,12 @@ The Commercial License allows you to:
 - **Data Hoarding:** Per TB processed.
 
 ## ROI
-Saves 90% on Cloud Storage (AWS S3) and Satellite Transfer costs.
+Storage/transfer savings depend entirely on workload and on the accepted
+reconstruction error (the transform is lossy). **All performance characteristics
+are unverified until benchmark suite execution** — see `benchmarks/` and run the
+suite to measure ratio and distortion on your own data before quoting savings.
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| storage_savings | undefined | unverified |
+| compression_ratio | undefined | unverified |

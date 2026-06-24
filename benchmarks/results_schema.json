@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EmiDob-22/ksdz/benchmarks/results_schema.json",
+  "title": "KSDZ benchmark results",
+  "description": "Structured output of benchmarks/benchmark_runner.py. One file = one suite run. Two metric classes are kept separate: 'lossless' codecs report a comparable compression_ratio; 'lossy_transform' codecs report fidelity metrics plus a non-comparable pseudo_compression_ratio. The two are never ranked together.",
+  "type": "object",
+  "required": ["schema_version", "environment", "config", "results"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "environment": {
+      "type": "object",
+      "description": "Captured at run time so every number is reproducible.",
+      "required": ["python", "platform", "packages", "timestamp_utc"],
+      "additionalProperties": true,
+      "properties": {
+        "python": {"type": "string"},
+        "platform": {"type": "string"},
+        "machine": {"type": "string"},
+        "packages": {"type": "object", "additionalProperties": {"type": ["string", "null"]}},
+        "git_commit": {"type": ["string", "null"]},
+        "timestamp_utc": {"type": "string"}
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": ["seed", "sizes", "datasets", "top_k"],
+      "additionalProperties": true,
+      "properties": {
+        "seed": {"type": "integer"},
+        "sizes": {"type": "array", "items": {"type": "integer"}},
+        "datasets": {"type": "array", "items": {"type": "string"}},
+        "top_k": {"type": "integer"},
+        "codecs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dataset", "codec", "class", "status"],
+        "additionalProperties": true,
+        "allOf": [
+          {
+            "comment": "lossless: comparable ratio, no fidelity/pseudo ratio",
+            "if": {"properties": {"class": {"const": "lossless"}}},
+            "then": {
+              "not": {"required": ["pseudo_compression_ratio"]},
+              "properties": {"cr_comparable": {"const": true}}
+            }
+          },
+          {
+            "comment": "lossy_transform: pseudo ratio + fidelity, never a comparable ratio",
+            "if": {"properties": {"class": {"const": "lossy_transform"}}},
+            "then": {
+              "not": {"required": ["compression_ratio"]},
+              "properties": {"cr_comparable": {"const": false}}
+            }
+          }
+        ],
+        "properties": {
+          "dataset": {"type": "string"},
+          "codec": {"type": "string"},
+          "class": {"type": "string", "enum": ["lossless", "lossy_transform"]},
+          "cr_comparable": {"type": "boolean"},
+          "lossless": {"type": ["boolean", "null"]},
+          "params": {"type": "object"},
+          "N": {"type": "integer"},
+          "seed": {"type": "integer"},
+          "input_sha256": {"type": "string"},
+          "status": {"type": "string", "enum": ["ok", "unavailable", "error"]},
+          "reason": {"type": ["string", "null"]},
+          "original_size": {"type": ["integer", "null"]},
+          "compressed_size": {"type": ["integer", "null"]},
+
+          "compression_ratio": {"type": ["number", "null"], "description": "lossless only; comparable across lossless codecs"},
+          "roundtrip_ok": {"type": ["boolean", "null"], "description": "lossless only; must be true"},
+
+          "pseudo_compression_ratio": {"type": ["number", "null"], "description": "lossy only; NOT comparable to lossless compression_ratio"},
+          "l2_error": {"type": ["number", "null"]},
+          "linf_error": {"type": ["number", "null"]},
+          "rmse": {"type": ["number", "null"], "description": "length-independent"},
+          "nrmse": {"type": ["number", "null"], "description": "rmse / dynamic-range; comparable across datasets"},
+          "spectral_distortion": {"type": ["number", "null"], "description": "raw L2 of |FFT| difference"},
+          "spectral_distortion_normalized": {"type": ["number", "null"], "description": "normalized by source spectrum energy"},
+          "length_match": {"type": ["integer", "null"]},
+
+          "encode_seconds": {"type": ["number", "null"]},
+          "decode_seconds": {"type": ["number", "null"]}
+        }
+      }
+    }
+  }
+}
